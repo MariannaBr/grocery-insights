@@ -5,17 +5,17 @@ import Providers from "./providers";
 
 export const metadata = {
   title: "Superblog",
-  description: "A blog app using Next.js and Prisma",
+  description: "A blog app using Next.js and Prisma"
 };
 
 export default function RootLayout({
-  children,
+  children
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <Providers>
           <div className="min-h-screen flex flex-col">
             <Header />

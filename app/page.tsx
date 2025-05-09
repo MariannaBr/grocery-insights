@@ -1,57 +1,47 @@
-export const dynamic = "force-dynamic"; // This disables SSG and ISR
-
-import prisma from "@/lib/prisma";
-import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
 import { redirect } from "next/navigation";
-import { checkPostTableExists } from "@/lib/db-utils";
+import Link from "next/link";
 
 export default async function Home() {
-  // Check if the post table exists
-  const tableExists = await checkPostTableExists();
+  const session = await getServerSession(authOptions);
 
-  // If the post table doesn't exist, redirect to setup page
-  if (!tableExists) {
-    redirect("/setup");
+  if (session?.user?.email) {
+    redirect("/profile");
   }
 
-  const posts = await prisma.post.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
-    take: 6,
-    include: {
-      author: {
-        select: {
-          name: true,
-        },
-      },
-    },
-  });
-
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-24 px-8">
-      <h1 className="text-5xl font-extrabold mb-12 text-[#333333]">Recent Posts</h1>
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 w-full max-w-6xl mb-8">
-        {posts.map((post) => (
-          <Link key={post.id} href={`/posts/${post.id}`} className="group">
-            <div className="border rounded-lg shadow-md bg-white p-6 hover:shadow-lg transition-shadow duration-300">
-              <h2 className="text-2xl font-semibold text-gray-900 group-hover:underline mb-2">{post.title}</h2>
-              <p className="text-sm text-gray-500">by {post.author ? post.author.name : "Anonymous"}</p>
-              <p className="text-xs text-gray-400 mb-4">
-                {new Date(post.createdAt).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
-              <div className="relative">
-                <p className="text-gray-700 leading-relaxed line-clamp-2">{post.content || "No content available."}</p>
-                <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-gray-50 to-transparent" />
-              </div>
+    <div className="min-h-screen bg-gray-50">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl md:text-6xl">
+            <span className="block">Welcome to</span>
+            <span className="block text-indigo-600">Grocery Insights</span>
+          </h1>
+          <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
+            Track your grocery spending, discover savings opportunities, and
+            make smarter shopping decisions.
+          </p>
+          <div className="mt-5 max-w-md mx-auto sm:flex sm:justify-center md:mt-8">
+            <div className="rounded-md shadow">
+              <Link
+                href="/register"
+                className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 md:py-4 md:text-lg md:px-10"
+              >
+                Sign up
+              </Link>
             </div>
-          </Link>
-        ))}
-      </div>
+            <div className="mt-3 rounded-md shadow sm:mt-0 sm:ml-3">
+              <Link
+                href="/login"
+                className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-gray-50 md:py-4 md:text-lg md:px-10"
+              >
+                Login
+              </Link>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
