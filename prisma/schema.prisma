@@ -70,6 +70,7 @@ model Receipt {
   filePath    String
   fileType    String
   items       Json[]
+  processed   Boolean  @default(false)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

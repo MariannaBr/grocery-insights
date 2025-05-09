@@ -1,92 +1,102 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
-import { initializeApp, getApps, cert } from "firebase-admin/app";
-import { getStorage } from "firebase-admin/storage";
 import prisma from "@/lib/prisma";
-import { v4 as uuidv4 } from "uuid";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
 
-// Initialize Firebase Admin
-if (!getApps().length) {
-  initializeApp({
-    credential: cert({
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n")
-    }),
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-  });
+interface FileWithDetails {
+  name: string;
+  type: string;
+  size: number;
+  arrayBuffer(): Promise<ArrayBuffer>;
 }
 
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const formData = await request.formData();
-    const storeName = formData.get("storeName") as string;
-    const file = formData.get("file") as File;
+    console.log("FormData keys:", Array.from(formData.keys()));
 
-    if (!storeName || !file) {
+    const files = formData.getAll("file") as unknown as FileWithDetails[];
+    console.log("Files received:", files.length);
+
+    if (!files || files.length === 0) {
+      console.error("No files received in request");
+      return NextResponse.json({ error: "No files provided" }, { status: 400 });
+    }
+
+    // Ensure upload directory exists
+    const uploadDir = join(process.cwd(), "public", "uploads");
+    try {
+      await mkdir(uploadDir, { recursive: true });
+    } catch (error) {
+      console.error("Error creating upload directory:", error);
+    }
+
+    const uploadedReceipts = [];
+
+    for (const file of files) {
+      try {
+        // Get file details from the Blob/File object
+        const fileName = file.name || `file-${Date.now()}`;
+        const fileType = file.type || "application/octet-stream";
+
+        console.log("Processing file:", {
+          name: fileName,
+          type: fileType,
+          size: file.size
+        });
+
+        // Save file to disk
+        const filePath = join(uploadDir, fileName);
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        await writeFile(filePath, buffer);
+
+        // Create receipt record in database
+        const receipt = await prisma.receipt.create({
+          data: {
+            userId: session.user.id,
+            storeName: "Pending",
+            date: new Date(),
+            totalAmount: 0,
+            fileUrl: `/uploads/${fileName}`,
+            filePath: filePath,
+            fileType: fileType,
+            items: [],
+            processed: false
+          }
+        });
+
+        uploadedReceipts.push({
+          id: receipt.id,
+          fileName: fileName,
+          fileUrl: receipt.fileUrl,
+          processed: false
+        });
+      } catch (error) {
+        console.error(`Error processing file:`, error);
+        // Continue with other files even if one fails
+      }
+    }
+
+    if (uploadedReceipts.length === 0) {
       return NextResponse.json(
-        { message: "Store name and file are required" },
-        { status: 400 }
+        { error: "Failed to upload any files" },
+        { status: 500 }
       );
     }
 
-    // Validate file type
-    const fileType = file.type;
-    if (!fileType.startsWith("image/") && fileType !== "application/pdf") {
-      return NextResponse.json(
-        { message: "Only images and PDFs are allowed" },
-        { status: 400 }
-      );
-    }
-
-    // Get file extension
-    const fileExtension = file.name.split(".").pop();
-    const fileName = `${uuidv4()}.${fileExtension}`;
-    const filePath = `receipts/${session.user.id}/${fileName}`;
-
-    // Upload to Firebase Storage
-    const bucket = getStorage().bucket();
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const fileUpload = bucket.file(filePath);
-
-    await fileUpload.save(buffer, {
-      metadata: {
-        contentType: fileType
-      }
-    });
-
-    // Get the public URL
-    const [url] = await fileUpload.getSignedUrl({
-      action: "read",
-      expires: "03-01-2500" // Long expiration for now
-    });
-
-    // Create receipt record in database
-    const receipt = await prisma.receipt.create({
-      data: {
-        userId: session.user.id,
-        storeName,
-        fileUrl: url,
-        filePath,
-        fileType,
-        date: new Date(), // We'll update this after OCR processing
-        totalAmount: 0, // We'll update this after OCR processing
-        items: [] // We'll update this after OCR processing
-      }
-    });
-
-    return NextResponse.json(receipt);
+    return NextResponse.json(uploadedReceipts);
   } catch (error) {
-    console.error("Error uploading receipt:", error);
+    console.error("Error in upload handler:", error);
     return NextResponse.json(
-      { message: "Error uploading receipt" },
+      { error: "Failed to upload receipts" },
       { status: 500 }
     );
   }
