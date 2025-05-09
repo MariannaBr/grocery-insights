@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import ReceiptUploadForm from "@/app/components/ReceiptUploadForm";
 
 export default function UploadReceipt() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
 
   if (status === "loading") {

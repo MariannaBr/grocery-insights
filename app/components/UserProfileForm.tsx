@@ -158,7 +158,7 @@ export default function UserProfileForm({
             <option value="Walmart">Walmart</option>
             <option value="Target">Target</option>
             <option value="Whole Foods">Whole Foods</option>
-            <option value="Trader Joe's">Trader Joe's</option>
+            <option value="Trader Joe's">Trader Joe&apos;s</option>
             <option value="Kroger">Kroger</option>
             <option value="Costco">Costco</option>
             <option value="Other">Other</option>

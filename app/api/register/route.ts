@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     });
 
     // Remove sensitive data from response
-    const { accounts, ...userWithoutSensitiveData } = user;
+    const { ...userWithoutSensitiveData } = user;
 
     return NextResponse.json(userWithoutSensitiveData);
   } catch (error) {

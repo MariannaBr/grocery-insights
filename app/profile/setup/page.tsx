@@ -7,7 +7,7 @@ import UserProfileForm from "@/app/components/UserProfileForm";
 
 export default function ProfileSetup() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +27,13 @@ export default function ProfileSetup() {
     return null;
   }
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: {
+    name: string;
+    age: string;
+    location: string;
+    householdSize: string;
+    preferredStore: string;
+  }) => {
     setIsLoading(true);
     setError(null);
 
