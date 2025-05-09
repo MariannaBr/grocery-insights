@@ -21,6 +21,15 @@ export interface ReceiptData {
   items: ReceiptItem[];
 }
 
+interface OpenAIResponseItem {
+  name: string;
+  code: string;
+  size: string;
+  price: string;
+  purchaseDate: string;
+  [key: string]: string;
+}
+
 export async function extractReceiptData(
   fileBuffer: Buffer,
   fileType: string
@@ -69,13 +78,13 @@ export async function extractReceiptData(
         storeName: data.storeName,
         purchaseDate: new Date(data.purchaseDate),
         totalAmount: parseFloat(data.totalAmount),
-        items: data.items.map((item: any) => ({
+        items: data.items.map((item: OpenAIResponseItem) => ({
           ...item,
           price: parseFloat(item.price),
           purchaseDate: new Date(item.purchaseDate)
         }))
       };
-    } catch (error) {
+    } catch {
       throw new Error("Failed to parse OpenAI response");
     }
   } finally {

@@ -3,6 +3,7 @@ import { authOptions } from "@/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
+import { ReceiptItem } from "@/lib/openai";
 
 export default async function ReceiptsPage() {
   const session = await getServerSession(authOptions);
@@ -45,7 +46,7 @@ export default async function ReceiptsPage() {
             <div className="space-y-2">
               <h3 className="font-medium">Items:</h3>
               <ul className="list-disc list-inside">
-                {(receipt.items as any[]).map((item, index) => (
+                {(receipt.items as ReceiptItem[]).map((item, index) => (
                   <li key={index} className="text-gray-600">
                     {item.name} - ${item.price.toFixed(2)}
                   </li>
