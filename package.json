@@ -10,11 +10,14 @@
     "postinstall": "npx prisma generate --no-engine"
   },
   "dependencies": {
+    "@firebase/storage": "^0.13.8",
     "@prisma/client": "^6.5.0",
     "@prisma/extension-accelerate": "^1.2.1",
     "bcryptjs": "^3.0.2",
+    "firebase": "^11.7.1",
+    "firebase-admin": "^13.3.0",
     "lucide-react": "^0.503.0",
-    "next": "15.1.7",
+    "next": "^15.3.2",
     "next-auth": "^4.24.11",
     "react": "^19.1.0",
     "react-dom": "^19.0.0"
@@ -25,6 +28,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.1.7",
     "postcss": "^8",

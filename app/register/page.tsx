@@ -45,8 +45,8 @@ export default function Register() {
         throw new Error(result.error);
       }
 
-      // Redirect to profile setup
-      router.push("/profile/setup");
+      // Redirect directly to profile page
+      router.push("/profile");
     } catch (error) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {

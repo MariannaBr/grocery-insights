@@ -23,18 +23,28 @@ export async function POST(req: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Create user with credentials provider
     const user = await prisma.user.create({
       data: {
         email,
-        password: hashedPassword
+        accounts: {
+          create: {
+            type: "credentials",
+            provider: "credentials",
+            providerAccountId: email,
+            password: hashedPassword
+          }
+        }
+      },
+      include: {
+        accounts: true
       }
     });
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
+    // Remove sensitive data from response
+    const { accounts, ...userWithoutSensitiveData } = user;
 
-    return NextResponse.json(userWithoutPassword);
+    return NextResponse.json(userWithoutSensitiveData);
   } catch (error) {
     console.error("Registration error:", error);
     return new NextResponse("Internal Server Error", { status: 500 });

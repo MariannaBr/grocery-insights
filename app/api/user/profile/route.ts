@@ -12,18 +12,14 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { name, age, location, householdSize, preferredStore } = body;
+    const { name } = body;
 
     const updatedUser = await prisma.user.update({
       where: {
         email: session.user.email
       },
       data: {
-        name,
-        age,
-        location,
-        householdSize,
-        preferredStore
+        name
       }
     });
 

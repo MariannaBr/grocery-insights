@@ -11,29 +11,6 @@ export default async function Profile() {
     redirect("/login");
   }
 
-  // Check if user has completed their profile
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: {
-      name: true,
-      age: true,
-      location: true,
-      householdSize: true,
-      preferredStore: true
-    }
-  });
-
-  // If user hasn't completed their profile, redirect to profile setup
-  if (
-    !user?.name ||
-    !user?.age ||
-    !user?.location ||
-    !user?.householdSize ||
-    !user?.preferredStore
-  ) {
-    redirect("/profile/setup");
-  }
-
   // Get user's recent receipts
   const receipts = await prisma.receipt.findMany({
     where: {
@@ -53,46 +30,14 @@ export default async function Profile() {
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="bg-white shadow rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900">
-                Personal Info
+                Recent Activity
               </h3>
-              <dl className="mt-4 space-y-2">
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Name</dt>
-                  <dd className="text-sm text-gray-900">{user.name}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Age</dt>
-                  <dd className="text-sm text-gray-900">{user.age}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">
-                    Location
-                  </dt>
-                  <dd className="text-sm text-gray-900">{user.location}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">
-                    Household Size
-                  </dt>
-                  <dd className="text-sm text-gray-900">
-                    {user.householdSize}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">
-                    Preferred Store
-                  </dt>
-                  <dd className="text-sm text-gray-900">
-                    {user.preferredStore}
-                  </dd>
-                </div>
-              </dl>
               <div className="mt-4">
                 <Link
-                  href="/profile/edit"
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                  href="/receipts/upload"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                 >
-                  Edit Profile
+                  Upload New Receipt
                 </Link>
               </div>
             </div>
