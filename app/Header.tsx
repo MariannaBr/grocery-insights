@@ -1,66 +1,96 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { signOut, onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function Header() {
-  const { data: session } = useSession();
   const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleSignOut = async () => {
-    await signOut({
-      redirect: false,
-      callbackUrl: "/"
-    });
-    router.push("/");
+    try {
+      await signOut(auth);
+      router.push("/login");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
+  if (loading) {
+    return null;
+  }
+
   return (
-    <header className="w-full bg-white shadow-md py-4 px-8">
-      <nav className="flex justify-between items-center">
-        <Link
-          href="/"
-          className="text-xl font-bold text-gray-800 hover:text-blue-600 transition-colors"
-        >
-          Grocery Insights
-        </Link>
-        <div className="flex items-center space-x-4">
-          {session ? (
-            <>
-              <Link
-                href="/receipts/upload"
-                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
-              >
-                Upload Receipt
-              </Link>
-              <Link
-                href="/profile"
-                className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition"
-              >
-                Profile
-              </Link>
-              <div className="flex items-center space-x-4">
-                <div className="text-sm text-gray-500">
-                  {session.user?.name && <div>{session.user.name}</div>}
-                  <div>{session.user?.email}</div>
-                </div>
+    <header className="bg-white shadow">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex">
+            <Link
+              href="/"
+              className="flex items-center px-2 py-2 text-gray-900 hover:text-gray-600"
+            >
+              Grocery Insights
+            </Link>
+          </div>
+
+          <div className="flex items-center">
+            {user ? (
+              <>
+                <Link
+                  href="/receipts"
+                  className="px-3 py-2 text-gray-900 hover:text-gray-600"
+                >
+                  Receipts
+                </Link>
+                <Link
+                  href="/insights"
+                  className="px-3 py-2 text-gray-900 hover:text-gray-600"
+                >
+                  Insights
+                </Link>
+                <Link
+                  href="/profile"
+                  className="px-3 py-2 text-gray-900 hover:text-gray-600"
+                >
+                  Profile
+                </Link>
                 <button
                   onClick={handleSignOut}
-                  className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+                  className="ml-4 px-3 py-2 text-gray-900 hover:text-gray-600"
                 >
                   Sign Out
                 </button>
-              </div>
-            </>
-          ) : (
-            <Link
-              href="/login"
-              className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
-            >
-              Login
-            </Link>
-          )}
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="px-3 py-2 text-gray-900 hover:text-gray-600"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-3 py-2 text-gray-900 hover:text-gray-600"
+                >
+                  Register
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </nav>
     </header>

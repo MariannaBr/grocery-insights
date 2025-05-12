@@ -3,63 +3,53 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 
-export default function Register() {
+export default function RegisterPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: ""
-  });
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError(null);
+    setIsLoading(true);
 
     try {
-      const response = await fetch("/api/register", {
+      const auth = getAuth();
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      // Get the ID token
+      const token = await userCredential.user.getIdToken();
+
+      // Create user in our database
+      const response = await fetch("/api/user/create", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(formData)
+          Authorization: `Bearer ${token}`
+        }
       });
-
-      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to register");
+        throw new Error("Failed to create user in database");
       }
 
-      // Sign in the user after successful registration
-      const result = await signIn("credentials", {
-        email: formData.email,
-        password: formData.password,
-        redirect: false
-      });
-
-      if (result?.error) {
-        throw new Error(result.error);
-      }
-
-      // Redirect directly to profile page
       router.push("/profile");
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+    } catch (error: any) {
+      setError(
+        error.code === "auth/email-already-in-use"
+          ? "Email is already registered"
+          : "An error occurred during registration"
+      );
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value
-    }));
   };
 
   return (
@@ -74,19 +64,20 @@ export default function Register() {
             href="/login"
             className="font-medium text-indigo-600 hover:text-indigo-500"
           >
-            login to your account
+            sign in to your existing account
           </Link>
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          {error && (
-            <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded relative">
-              {error}
-            </div>
-          )}
           <form className="space-y-6" onSubmit={handleSubmit}>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded relative">
+                {error}
+              </div>
+            )}
+
             <div>
               <label
                 htmlFor="email"
@@ -101,8 +92,8 @@ export default function Register() {
                   type="email"
                   autoComplete="email"
                   required
-                  value={formData.email}
-                  onChange={handleChange}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
               </div>
@@ -122,8 +113,8 @@ export default function Register() {
                   type="password"
                   autoComplete="new-password"
                   required
-                  value={formData.password}
-                  onChange={handleChange}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
               </div>
@@ -136,10 +127,10 @@ export default function Register() {
                 className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
                   isLoading
                     ? "bg-indigo-400 cursor-not-allowed"
-                    : "bg-indigo-600 hover:bg-indigo-700"
-                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+                    : "bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                }`}
               >
-                {isLoading ? "Creating account..." : "Submit"}
+                {isLoading ? "Creating account..." : "Create account"}
               </button>
             </div>
           </form>

@@ -1,102 +1,92 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
+import { adminAuth, adminStorage } from "@/lib/firebase-admin";
 import prisma from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-
-interface FileWithDetails {
-  name: string;
-  type: string;
-  size: number;
-  arrayBuffer(): Promise<ArrayBuffer>;
-}
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Verify authentication
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const token = authHeader.split("Bearer ")[1];
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const userId = decodedToken.uid;
+
+    // Get form data
     const formData = await request.formData();
-    console.log("FormData keys:", Array.from(formData.keys()));
+    const files = formData.getAll("file") as File[];
+    const storeName = formData.get("storeName") as string;
 
-    const files = formData.getAll("file") as unknown as FileWithDetails[];
-    console.log("Files received:", files.length);
-
-    if (!files || files.length === 0) {
-      console.error("No files received in request");
-      return NextResponse.json({ error: "No files provided" }, { status: 400 });
-    }
-
-    // Ensure upload directory exists
-    const uploadDir = join(process.cwd(), "public", "uploads");
-    try {
-      await mkdir(uploadDir, { recursive: true });
-    } catch (error) {
-      console.error("Error creating upload directory:", error);
+    if (!files.length || !storeName) {
+      return new NextResponse("Missing required fields", { status: 400 });
     }
 
     const uploadedReceipts = [];
+    const bucket = adminStorage.bucket();
 
+    // Process each file
     for (const file of files) {
       try {
-        // Get file details from the Blob/File object
-        const fileName = file.name || `file-${Date.now()}`;
-        const fileType = file.type || "application/octet-stream";
+        // Generate a unique file name
+        const timestamp = Date.now();
+        const fileName = `${userId}/${timestamp}-${file.name}`;
 
-        console.log("Processing file:", {
-          name: fileName,
-          type: fileType,
-          size: file.size
+        // Convert file to buffer
+        const buffer = await file.arrayBuffer();
+        const fileBuffer = Buffer.from(buffer);
+
+        // Upload to Firebase Storage
+        const fileRef = bucket.file(fileName);
+        await fileRef.save(fileBuffer, {
+          metadata: {
+            contentType: file.type,
+            metadata: {
+              userId,
+              storeName,
+              uploadedAt: timestamp.toString()
+            }
+          }
         });
 
-        // Save file to disk
-        const filePath = join(uploadDir, fileName);
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        await writeFile(filePath, buffer);
+        // Get a signed URL that expires in 10 years
+        const [url] = await fileRef.getSignedUrl({
+          action: "read",
+          expires: "03-01-2500"
+        });
 
         // Create receipt record in database
         const receipt = await prisma.receipt.create({
           data: {
-            userId: session.user.id,
-            storeName: "Pending",
+            userId,
+            storeName,
             date: new Date(),
             totalAmount: 0,
-            fileUrl: `/uploads/${fileName}`,
-            filePath: filePath,
-            fileType: fileType,
+            fileUrl: url,
+            filePath: fileName,
+            fileType: file.type,
             items: [],
             processed: false
           }
         });
 
-        uploadedReceipts.push({
-          id: receipt.id,
-          fileName: fileName,
-          fileUrl: receipt.fileUrl,
-          processed: false
-        });
+        uploadedReceipts.push(receipt);
       } catch (error) {
-        console.error(`Error processing file:`, error);
+        console.error(`Error processing file ${file.name}:`, error);
         // Continue with other files even if one fails
       }
     }
 
     if (uploadedReceipts.length === 0) {
-      return NextResponse.json(
-        { error: "Failed to upload any files" },
-        { status: 500 }
-      );
+      return new NextResponse("Failed to upload any receipts", { status: 500 });
     }
 
     return NextResponse.json(uploadedReceipts);
   } catch (error) {
-    console.error("Error in upload handler:", error);
-    return NextResponse.json(
-      { error: "Failed to upload receipts" },
+    console.error("Error uploading receipts:", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Internal Server Error",
       { status: 500 }
     );
   }

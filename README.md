@@ -1,168 +1,88 @@
-# Next.js & Prisma Postgres Auth Starter
+# Grocery Insights
 
-This repository provides a boilerplate to quickly set up a Next.js demo application with authentication using [NextAuth.js v4](https://next-auth.js.org/), [Prisma Postgres](https://www.prisma.io/postgres) and [Prisma ORM](https://www.prisma.io/orm), and deploy it to Vercel. It includes an easy setup process and example routes that demonstrate basic CRUD operations against the database.
+A Next.js application that helps users track and analyze their grocery shopping habits by processing and analyzing receipts.
 
 ## Features
 
-- Next.js 15 app with App Router, Server Actions & API Routes
-- Data modeling, database migrations, seeding & querying
-- Log in and sign up authentication flows
-- CRUD operations to create, view and delete blog posts
-- Pagination, filtering & relations queries
+- User authentication with Firebase
+- Receipt upload and processing
+- Shopping insights and analytics
+- Responsive design with Tailwind CSS
 
-## Getting started
+## Tech Stack
 
-### 1. Install dependencies
+- [Next.js 14](https://nextjs.org/)
+- [Firebase Authentication](https://firebase.google.com/docs/auth)
+- [Firebase Admin SDK](https://firebase.google.com/docs/admin)
+- [Prisma](https://www.prisma.io/) with PostgreSQL
+- [Tailwind CSS](https://tailwindcss.com/)
 
-After cloning the repo and navigating into it, install dependencies:
+## Getting Started
 
+1. Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/grocery-insights.git
+cd grocery-insights
 ```
+
+2. Install dependencies:
+
+```bash
 npm install
 ```
 
-### 1. Create a Prisma Postgres instance
+3. Set up environment variables:
+   Create a `.env` file in the root directory with the following variables:
 
-Create a Prisma Postgres instance by running the following command:
+```env
+# Firebase
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=your-client-email
+FIREBASE_PRIVATE_KEY=your-private-key
 
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/grocery_insights"
+
+# OpenAI (for receipt processing)
+OPENAI_API_KEY=your-openai-api-key
 ```
-npx prisma init --db
-```
 
-This command is interactive and will prompt you to:
-
-1. Log in to the [Prisma Console](https://console.prisma.io)
-1. Select a **region** for your Prisma Postgres instance
-1. Give a **name** to your Prisma project
-
-Once the command has terminated, copy the **Database URL** from the terminal output. You'll need it in the next step when you configure your `.env` file.
-
-<!-- Create a Prisma Postgres database instance using [Prisma Data Platform](https://console.prisma.io):
-
-1. Navigate to [Prisma Data Platform](https://console.prisma.io).
-2. Click **New project** to create a new project.
-3. Enter a name for your project in the **Name** field.
-4. Inside the **Prisma Postgres** section, click **Get started**.
-5. Choose a region close to your location from the **Region** dropdown.
-6. Click **Create project** to set up your database. This redirects you to the database setup page.
-7. In the **Set up database access** section, copy the `DATABASE_URL`. You will use this in the next steps. -->
-
-### 2. Set up your `.env` file
-
-You now need to configure your database connection via an environment variable.
-
-First, create an `.env` file:
+4. Set up the database:
 
 ```bash
-touch .env
+npx prisma migrate dev
 ```
 
-Then update the `.env` file by replacing the existing `DATABASE_URL` value with the one you previously copied. It will look similar to this:
-
-```bash
-DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=PRISMA_POSTGRES_API_KEY"
-```
-
-To ensure your authentication works properly, you'll also need to set [env vars for NextAuth.js](https://next-auth.js.org/configuration/options):
-
-```bash
-AUTH_SECRET="RANDOM_32_CHARACTER_STRING"
-```
-
-You can generate a random 32 character string for the `AUTH_SECRET` secret with this command:
-
-```
-npx auth secret
-```
-
-In the end, your entire `.env` file should look similar to this (but using _your own values_ for the env vars):
-
-```bash
-DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcGlfa2V5IjoiMWEzMjBiYTEtYjg2Yy00ZTA5LThmZTktZDBhODA3YjQwZjBkIiwidGVuYW50X2lkIjoiY2RhYmM3ZTU1NzdmMmIxMmM0ZTI1Y2IwNWJhZmZhZmU4NjAxNzkxZThlMzhlYjI1NDgwNmIzZjI5NmU1NTkzNiIsImludGVybmFsX3NlY3JldCI6ImI3YmQzMjFhLTY2ODQtNGRiMC05ZWRiLWIyMGE2ZTQ0ZDMwMSJ9.JgKXQBatjjh7GIG3_fRHDnia6bDv8BdwvaX5F-XdBfw"
-
-AUTH_SECRET="gTwLSXFeNWFRpUTmxlRniOfegXYw445pd0k6JqXd7Ag="
-```
-
-### 3. Migrate the database
-
-Run the following commands to set up your database and Prisma schema:
-
-```bash
-npx prisma migrate dev --name init
-```
-
-<!--
-<details>
-
-<summary>Expand for <code>yarn</code>, <code>pnpm</code> or <code>bun</code></summary>
-
-```bash
-# Using yarn
-yarn prisma migrate dev --name init
-
-# Using pnpm
-pnpm prisma migrate dev --name init
-
-# Using bun
-bun prisma migrate dev --name init
-```
-
-</details> -->
-
-### 4. Seed the database
-
-Add initial data to your database:
-
-```bash
-npx prisma db seed
-```
-
-<details>
-
-<summary>Expand for <code>yarn</code>, <code>pnpm</code> or <code>bun</code></summary>
-
-```bash
-# Using yarn
-yarn prisma db seed
-
-# Using pnpm
-pnpm prisma db seed
-
-# Using bun
-bun prisma db seed
-```
-
-</details>
-
-### 5. Run the app
-
-Start the development server:
+5. Run the development server:
 
 ```bash
 npm run dev
 ```
 
-<details>
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-<summary>Expand for <code>yarn</code>, <code>pnpm</code> or <code>bun</code></summary>
+## Firebase Setup
 
-```bash
-# Using yarn
-yarn dev
+1. Create a new Firebase project at [https://console.firebase.google.com/](https://console.firebase.google.com/)
+2. Enable Email/Password authentication in the Firebase Console
+3. Generate a new private key for the Firebase Admin SDK:
+   - Go to Project Settings > Service Accounts
+   - Click "Generate New Private Key"
+   - Save the JSON file and use its values in your `.env` file
 
-# Using pnpm
-pnpm run dev
+## Database Schema
 
-# Using bun
-bun run dev
-```
+The application uses Prisma with PostgreSQL. The main models are:
 
-</details>
+- User: Stores user information
+- Receipt: Stores receipt data and processing status
+- Item: Stores individual items from receipts
 
-Once the server is running, visit `http://localhost:3000` to start using the app.
+## Contributing
 
-## Next steps
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-- [Prisma ORM documentation](https://www.prisma.io/docs/orm)
-- [Prisma Client API reference](https://www.prisma.io/docs/orm/prisma-client)
-- [Join our Discord community](https://discord.com/invite/prisma)
-- [Follow us on Twitter](https://twitter.com/prisma)
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
