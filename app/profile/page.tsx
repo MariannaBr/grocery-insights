@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import ReceiptUpload from "@/app/components/ReceiptUpload";
 import ReceiptList from "@/app/components/ReceiptList";
 import { UploadSuccess } from "@/app/components/UploadSuccess";
@@ -11,7 +11,7 @@ import { UploadSuccess } from "@/app/components/UploadSuccess";
 export default function ProfilePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showUploadForm, setShowUploadForm] = useState(false);

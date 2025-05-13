@@ -41,9 +41,13 @@ export default function RegisterPage() {
       }
 
       router.push("/profile");
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "An error occurred during registration";
       setError(
-        error.code === "auth/email-already-in-use"
+        errorMessage.includes("email-already-in-use")
           ? "Email is already registered"
           : "An error occurred during registration"
       );

@@ -1,16 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
 
+interface Receipt {
+  id: string;
+  processed: boolean;
+}
+
+interface SpendingByStore {
+  [key: string]: number;
+}
+
+interface SpendingByMonth {
+  [key: string]: number;
+}
+
+interface CommonItem {
+  name: string;
+  count: number;
+}
+
+interface Insights {
+  totalSpending: number;
+  totalReceipts: number;
+  spendingByStore: SpendingByStore;
+  spendingByMonth: SpendingByMonth;
+  mostCommonItems: CommonItem[];
+}
+
 export default function InsightsPage() {
-  const [insights, setInsights] = useState<any>(null);
+  const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingReceipts, setProcessingReceipts] = useState(false);
-  const router = useRouter();
 
   useEffect(() => {
     const processAndFetchInsights = async () => {
@@ -32,7 +56,9 @@ export default function InsightsPage() {
         }
 
         const receipts = await receiptsResponse.json();
-        const unprocessedReceipts = receipts.filter((r: any) => !r.processed);
+        const unprocessedReceipts = receipts.filter(
+          (r: Receipt) => !r.processed
+        );
 
         // If there are unprocessed receipts, process them first
         if (unprocessedReceipts.length > 0) {
@@ -44,7 +70,7 @@ export default function InsightsPage() {
               Authorization: `Bearer ${token}`
             },
             body: JSON.stringify({
-              receiptIds: unprocessedReceipts.map((r: any) => r.id)
+              receiptIds: unprocessedReceipts.map((r: Receipt) => r.id)
             })
           });
 
@@ -164,7 +190,7 @@ export default function InsightsPage() {
                   {Object.entries(insights.spendingByStore).map(
                     ([store, amount]) => (
                       <p key={store} className="text-gray-700">
-                        {store}: ${(amount as number).toFixed(2)}
+                        {store}: ${amount.toFixed(2)}
                       </p>
                     )
                   )}
@@ -179,7 +205,7 @@ export default function InsightsPage() {
                   {Object.entries(insights.spendingByMonth).map(
                     ([month, amount]) => (
                       <p key={month} className="text-gray-700">
-                        {month}: ${(amount as number).toFixed(2)}
+                        {month}: ${amount.toFixed(2)}
                       </p>
                     )
                   )}
@@ -191,21 +217,16 @@ export default function InsightsPage() {
                   Most Common Items
                 </h2>
                 <div className="space-y-2">
-                  {insights.mostCommonItems.map(
-                    (item: { name: string; count: number }) => (
-                      <p key={item.name} className="text-gray-700">
-                        {item.name}: {item.count} times
-                      </p>
-                    )
-                  )}
+                  {insights.mostCommonItems.map((item) => (
+                    <p key={item.name} className="text-gray-700">
+                      {item.name}: {item.count} times
+                    </p>
+                  ))}
                 </div>
               </div>
             </div>
           ) : (
-            <p className="text-gray-500 text-center">
-              No insights available. Please upload and process some receipts
-              first.
-            </p>
+            <p className="text-gray-700">No insights available yet.</p>
           )}
         </div>
       </div>

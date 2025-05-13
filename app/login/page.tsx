@@ -41,9 +41,13 @@ export default function LoginPage() {
       }
 
       router.push("/profile");
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "An error occurred during login";
       setError(
-        error.code === "auth/invalid-credential"
+        errorMessage.includes("invalid-credential")
           ? "Invalid email or password"
           : "An error occurred during login"
       );
