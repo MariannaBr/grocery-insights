@@ -3,6 +3,7 @@
 import { useState, useRef, DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
+import { v4 as uuidv4 } from "uuid";
 
 const GROCERY_STORES = [
   "Walmart",
@@ -20,10 +21,11 @@ const GROCERY_STORES = [
 ];
 
 // interface UploadedReceipt {
-//   id: string;
+//   sessionId: string;
 //   fileName: string;
 //   fileUrl: string;
-//   processed: boolean;
+//   storeName: string;
+//   uploadedAt: number;
 // }
 
 export default function ReceiptUpload() {
@@ -31,6 +33,7 @@ export default function ReceiptUpload() {
   const [storeName, setStoreName] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string>(uuidv4());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -90,27 +93,38 @@ export default function ReceiptUpload() {
     try {
       const formData = new FormData();
       formData.append("storeName", storeName);
+      formData.append("sessionId", sessionId);
       files.forEach((file) => {
         formData.append("file", file);
       });
 
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) {
-        throw new Error("Not authenticated");
-      }
+      const user = auth.currentUser;
+      let response;
 
-      const response = await fetch("/api/receipts/upload", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        body: formData
-      });
+      if (user) {
+        // Authenticated upload
+        const token = await user.getIdToken();
+        response = await fetch("/api/receipts/upload", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          body: formData
+        });
+      } else {
+        // Unauthenticated upload
+        response = await fetch("/api/receipts/temp-upload", {
+          method: "POST",
+          body: formData
+        });
+      }
 
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || "Failed to upload receipts");
       }
+
+      const data = await response.json();
 
       // Clear the form
       setFiles([]);
@@ -119,8 +133,13 @@ export default function ReceiptUpload() {
         fileInputRef.current.value = "";
       }
 
-      // Redirect to profile page with success parameter
-      router.push("/profile?upload=success");
+      if (user) {
+        // Redirect to profile page with success parameter
+        router.push("/profile?upload=success");
+      } else {
+        // Show email collection modal
+        router.push(`/auth/email?sessionId=${data.sessionId}`);
+      }
     } catch (err) {
       console.error("Upload error:", err);
       setError(

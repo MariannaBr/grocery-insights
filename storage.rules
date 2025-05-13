@@ -6,5 +6,10 @@ service firebase.storage {
     match /{userId}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+    
+    // Allow temporary storage for unauthenticated users
+    match /temp/{sessionId}/{allPaths=**} {
+      allow read, write: if true;
+    }
   }
 } 

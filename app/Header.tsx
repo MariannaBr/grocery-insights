@@ -23,7 +23,7 @@ export default function Header() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      router.push("/login");
+      router.push("/");
     } catch (error) {
       console.error("Error signing out:", error);
     }
@@ -75,20 +75,12 @@ export default function Header() {
                 </button>
               </>
             ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="px-3 py-2 text-gray-900 hover:text-gray-600"
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/register"
-                  className="px-3 py-2 text-gray-900 hover:text-gray-600"
-                >
-                  Register
-                </Link>
-              </>
+              <Link
+                href="/login"
+                className="px-3 py-2 text-gray-900 hover:text-gray-600"
+              >
+                Login
+              </Link>
             )}
           </div>
         </div>
