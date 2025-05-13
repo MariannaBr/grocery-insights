@@ -4,8 +4,8 @@ import Header from "./Header";
 import Providers from "./providers";
 
 export const metadata = {
-  title: "Superblog",
-  description: "A blog app using Next.js and Prisma"
+  title: "Grocery Insights",
+  description: "Track and analyze your grocery shopping habits"
 };
 
 export default function RootLayout({
@@ -15,7 +15,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning>
+      <body
+        className="min-h-screen bg-background text-foreground"
+        suppressHydrationWarning
+      >
         <Providers>
           <div className="min-h-screen flex flex-col">
             <Header />
