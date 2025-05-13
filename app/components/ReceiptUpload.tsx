@@ -19,12 +19,12 @@ const GROCERY_STORES = [
   "Other"
 ];
 
-interface UploadedReceipt {
-  id: string;
-  fileName: string;
-  fileUrl: string;
-  processed: boolean;
-}
+// interface UploadedReceipt {
+//   id: string;
+//   fileName: string;
+//   fileUrl: string;
+//   processed: boolean;
+// }
 
 export default function ReceiptUpload() {
   const [files, setFiles] = useState<File[]>([]);
