@@ -10,26 +10,49 @@ import prisma from "@/lib/prisma";
 
 // Initialize Firebase Admin
 if (!getApps().length) {
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  if (!privateKey) {
-    throw new Error("FIREBASE_PRIVATE_KEY environment variable is not set");
-  }
-
-  const serviceAccount: ServiceAccount = {
-    projectId: process.env.FIREBASE_PROJECT_ID ?? "",
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL ?? "",
-    privateKey
-  };
-
-  if (!serviceAccount.projectId || !serviceAccount.clientEmail) {
-    throw new Error(
-      "Firebase service account environment variables are not properly configured"
+  try {
+    // Log environment variables (without sensitive data)
+    console.log("Firebase initialization - Environment check:");
+    console.log(
+      "FIREBASE_PROJECT_ID exists:",
+      !!process.env.FIREBASE_PROJECT_ID
     );
-  }
+    console.log(
+      "FIREBASE_CLIENT_EMAIL exists:",
+      !!process.env.FIREBASE_CLIENT_EMAIL
+    );
+    console.log(
+      "FIREBASE_PRIVATE_KEY exists:",
+      !!process.env.FIREBASE_PRIVATE_KEY
+    );
 
-  initializeApp({
-    credential: cert(serviceAccount)
-  });
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+    if (!privateKey) {
+      throw new Error("FIREBASE_PRIVATE_KEY environment variable is not set");
+    }
+
+    const serviceAccount: ServiceAccount = {
+      projectId: process.env.FIREBASE_PROJECT_ID ?? "",
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL ?? "",
+      privateKey
+    };
+
+    if (!serviceAccount.projectId || !serviceAccount.clientEmail) {
+      throw new Error(
+        `Firebase service account environment variables are not properly configured:
+        projectId: ${!!serviceAccount.projectId}
+        clientEmail: ${!!serviceAccount.clientEmail}`
+      );
+    }
+
+    initializeApp({
+      credential: cert(serviceAccount)
+    });
+    console.log("Firebase Admin SDK initialized successfully");
+  } catch (error) {
+    console.error("Firebase initialization error:", error);
+    throw error; // Re-throw to prevent silent failures
+  }
 }
 
 export async function GET(request: Request) {
