@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
@@ -8,7 +8,7 @@ import ReceiptUpload from "@/app/components/ReceiptUpload";
 import ReceiptList from "@/app/components/ReceiptList";
 import { UploadSuccess } from "@/app/components/UploadSuccess";
 
-export default function ProfilePage() {
+function ProfileContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
@@ -101,5 +101,19 @@ export default function ProfilePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      }
+    >
+      <ProfileContent />
+    </Suspense>
   );
 }
