@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getAuth, signInWithEmailLink } from "firebase/auth";
-import prisma from "@/lib/prisma";
 
 export default function VerifyPage() {
   const router = useRouter();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { getAuth, sendSignInLinkToEmail } from "firebase/auth";
 
 interface ReceiptSummary {
@@ -10,7 +10,6 @@ interface ReceiptSummary {
 }
 
 export default function EmailPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId");
   const [email, setEmail] = useState("");

@@ -57,8 +57,8 @@ export async function POST(request: Request) {
       return new NextResponse("Missing required fields", { status: 400 });
     }
 
-    // Create or get temp session
-    const tempSession = await prisma.tempSession.upsert({
+    // Create temp session
+    await prisma.tempSession.upsert({
       where: { id: sessionId },
       create: { id: sessionId },
       update: {}
@@ -132,7 +132,8 @@ export async function POST(request: Request) {
           storeName: receiptData.storeName,
           uploadedAt: timestamp,
           totalAmount: receiptData.totalAmount,
-          itemCount: receiptData.items.length
+          itemCount: receiptData.items.length,
+          receiptId: receipt.id
         });
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
