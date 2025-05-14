@@ -33,7 +33,7 @@ export default function ReceiptUpload() {
   const [storeName, setStoreName] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string>(uuidv4());
+  const sessionId = useRef(uuidv4()).current;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 

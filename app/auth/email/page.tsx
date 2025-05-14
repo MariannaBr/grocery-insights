@@ -81,8 +81,8 @@ export default function EmailPage() {
             Check your email
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            We've sent a magic link to {email}. Click the link to access your
-            insights.
+            We&apos;ve sent a magic link to {email}. Click the link to access
+            your insights.
           </p>
         </div>
       </div>
