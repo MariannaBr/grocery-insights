@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { getAuth, sendSignInLinkToEmail } from "firebase/auth";
 
@@ -9,7 +9,7 @@ interface ReceiptSummary {
   totalItems: number;
 }
 
-export default function EmailPage() {
+function EmailForm() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId");
   const [email, setEmail] = useState("");
@@ -163,5 +163,24 @@ export default function EmailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function EmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+          <div className="sm:mx-auto sm:w-full sm:max-w-md">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading...</p>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <EmailForm />
+    </Suspense>
   );
 }
