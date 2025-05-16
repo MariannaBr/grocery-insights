@@ -269,7 +269,7 @@ export default function ReceiptUpload() {
                 <li className="text-gray-400 text-sm">No files selected.</li>
               )}
               {files.map((file, index) => {
-                let icon, iconColor;
+                let icon;
                 if (file.file.type === "application/pdf") {
                   icon = (
                     <svg
@@ -283,7 +283,6 @@ export default function ReceiptUpload() {
                       <path d="M14 2v6h6" />
                     </svg>
                   );
-                  iconColor = "text-red-400";
                 } else if (
                   file.file.type &&
                   file.file.type.startsWith("image/")
@@ -301,7 +300,6 @@ export default function ReceiptUpload() {
                       <path d="M21 15l-5-5L5 21" />
                     </svg>
                   );
-                  iconColor = "text-blue-400";
                 } else {
                   icon = (
                     <svg
@@ -314,7 +312,6 @@ export default function ReceiptUpload() {
                       <rect x="3" y="3" width="18" height="18" rx="2" />
                     </svg>
                   );
-                  iconColor = "text-yellow-400";
                 }
                 return (
                   <li

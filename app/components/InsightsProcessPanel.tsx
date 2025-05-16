@@ -8,7 +8,7 @@ export default function InsightsProcessPanel({
   sessionId
 }: InsightsProcessPanelProps) {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [insights, setInsights] = useState<any>(null);
+  const [insights, setInsights] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleProcessInsights = async () => {
