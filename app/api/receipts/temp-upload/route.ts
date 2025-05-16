@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { adminStorage } from "@/lib/firebase-admin";
 import { v4 as uuidv4 } from "uuid";
 import prisma from "@/lib/prisma";
-import { extractReceiptData } from "@/lib/openai";
+//import { extractReceiptData } from "@/lib/openai";
 
 export async function GET(request: Request) {
   try {

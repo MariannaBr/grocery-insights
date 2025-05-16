@@ -15,8 +15,8 @@ export default function ReceiptUpload() {
   const [files, setFiles] = useState<FileWithProgress[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [insights, setInsights] = useState<any>(null);
+  //const [isProcessing, setIsProcessing] = useState(false);
+  //const [insights, setInsights] = useState<any>(null);
   const [sessionIdState, setSessionIdState] = useState<string | null>(null);
   const sessionId = useRef(uuidv4()).current;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -224,7 +224,7 @@ export default function ReceiptUpload() {
           {isUploading && (
             <div className="mt-4 text-blue-600 text-sm">Uploading...</div>
           )}
-          {isProcessing && (
+          {/* {isProcessing && (
             <div className="mt-4 flex items-center gap-2 text-blue-600 text-sm">
               <svg
                 className="animate-spin h-5 w-5"
@@ -247,7 +247,7 @@ export default function ReceiptUpload() {
               </svg>
               Processing your receipts and extracting insights...
             </div>
-          )}
+          )} 
           {insights && (
             <div className="mt-4 w-full bg-gray-100 rounded p-4 text-left">
               <div className="font-semibold mb-2">Insights:</div>
@@ -256,6 +256,7 @@ export default function ReceiptUpload() {
               </pre>
             </div>
           )}
+          */}
         </div>
       </div>
       {/* Right: Uploaded files list */}
