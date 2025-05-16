@@ -50,10 +50,10 @@ export async function POST(request: Request) {
     // Get form data
     const formData = await request.formData();
     const files = formData.getAll("file") as File[];
-    const storeName = formData.get("storeName") as string;
+    const storeName = "";
     const sessionId = (formData.get("sessionId") as string) || uuidv4();
 
-    if (!files.length || !storeName) {
+    if (!files.length) {
       return new NextResponse("Missing required fields", { status: 400 });
     }
 
@@ -107,21 +107,18 @@ export async function POST(request: Request) {
           expires: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
         });
 
-        // Extract receipt data using OpenAI
-        const receiptData = await extractReceiptData(fileBuffer, file.type);
-
         // Create receipt record in database
         const receipt = await prisma.receipt.create({
           data: {
             tempSessionId: sessionId,
-            storeName: receiptData.storeName,
-            date: receiptData.purchaseDate,
-            totalAmount: receiptData.totalAmount,
+            storeName,
+            date: new Date(),
+            totalAmount: 0,
             fileUrl: url,
             filePath: fileName,
             fileType: file.type,
-            items: receiptData.items,
-            processed: true
+            items: [],
+            processed: false
           }
         });
 
@@ -129,37 +126,71 @@ export async function POST(request: Request) {
           sessionId,
           fileName,
           fileUrl: url,
-          storeName: receiptData.storeName,
+          storeName: storeName,
           uploadedAt: timestamp,
-          totalAmount: receiptData.totalAmount,
-          itemCount: receiptData.items.length,
+          totalAmount: 0,
           receiptId: receipt.id
         });
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
         // Continue with other files even if one fails
       }
+
+      // Extract receipt data using OpenAI
+      //const receiptData = await extractReceiptData(fileBuffer, file.type);
+
+      // Create receipt record in database
+      // const receipt = await prisma.receipt.create({
+      //   data: {
+      //     tempSessionId: sessionId,
+      //     storeName: receiptData.storeName,
+      //     date: receiptData.purchaseDate,
+      //     totalAmount: receiptData.totalAmount,
+      //     fileUrl: url,
+      //     filePath: fileName,
+      //     fileType: file.type,
+      //     items: receiptData.items,
+      //     processed: true
+      //   }
+      // });
+
+      // uploadedReceipts.push({
+      //   sessionId,
+      //   fileName,
+      //   fileUrl: url,
+      //   storeName: receiptData.storeName,
+      //   uploadedAt: timestamp,
+      //   totalAmount: receiptData.totalAmount,
+      //   itemCount: receiptData.items.length,
+      //   receiptId: receipt.id
+      // });
+      //   } catch (error) {
+      //     console.error(`Error processing file ${file.name}:`, error);
+      //     // Continue with other files even if one fails
+      //   }
     }
 
     if (uploadedReceipts.length === 0) {
       return new NextResponse("Failed to upload any receipts", { status: 500 });
     }
 
-    // Calculate total amount and item count
-    const totalAmount = uploadedReceipts.reduce(
-      (sum, receipt) => sum + receipt.totalAmount,
-      0
-    );
-    const totalItems = uploadedReceipts.reduce(
-      (sum, receipt) => sum + receipt.itemCount,
-      0
-    );
+    if (uploadedReceipts.length === 0) {
+      return new NextResponse("Failed to upload any receipts", { status: 500 });
+    }
+
+    // // Calculate total amount and item count
+    // const totalAmount = uploadedReceipts.reduce(
+    //   (sum, receipt) => sum + receipt.totalAmount,
+    //   0
+    // );
+    // const totalItems = uploadedReceipts.reduce(
+    //   (sum, receipt) => sum + receipt.itemCount,
+    //   0
+    // );
 
     return NextResponse.json({
       receipts: uploadedReceipts,
-      sessionId,
-      totalAmount,
-      totalItems
+      sessionId
     });
   } catch (error) {
     console.error("Error uploading receipts:", error);

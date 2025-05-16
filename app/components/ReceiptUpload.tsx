@@ -1,41 +1,25 @@
 "use client";
 
 import { useState, useRef, DragEvent } from "react";
-import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { v4 as uuidv4 } from "uuid";
+import InsightsProcessPanel from "./InsightsProcessPanel";
 
-const GROCERY_STORES = [
-  "Walmart",
-  "Target",
-  "Whole Foods",
-  "Trader Joe's",
-  "Kroger",
-  "Costco",
-  "Safeway",
-  "Albertsons",
-  "Publix",
-  "Aldi",
-  "Lidl",
-  "Other"
-];
-
-// interface UploadedReceipt {
-//   sessionId: string;
-//   fileName: string;
-//   fileUrl: string;
-//   storeName: string;
-//   uploadedAt: number;
-// }
+type FileWithProgress = {
+  file: File;
+  progress: number;
+  status: "uploading" | "uploaded";
+};
 
 export default function ReceiptUpload() {
-  const [files, setFiles] = useState<File[]>([]);
-  const [storeName, setStoreName] = useState("");
+  const [files, setFiles] = useState<FileWithProgress[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [insights, setInsights] = useState<any>(null);
+  const [sessionIdState, setSessionIdState] = useState<string | null>(null);
   const sessionId = useRef(uuidv4()).current;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -45,19 +29,24 @@ export default function ReceiptUpload() {
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-
     const droppedFiles = Array.from(e.dataTransfer.files).filter(
       (file) =>
         file.type === "application/pdf" || file.type.startsWith("image/")
     );
-
     if (droppedFiles.length === 0) {
       setError("Please upload only PDF or image files");
       return;
     }
-
-    setFiles((prevFiles) => [...prevFiles, ...droppedFiles]);
+    setFiles((prevFiles) => [
+      ...prevFiles,
+      ...droppedFiles.map((file) => ({
+        file,
+        progress: 0,
+        status: "uploading" as const
+      }))
+    ]);
     setError(null);
+    uploadFiles(droppedFiles);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,81 +54,87 @@ export default function ReceiptUpload() {
       (file) =>
         file.type === "application/pdf" || file.type.startsWith("image/")
     );
-
     if (selectedFiles.length === 0) {
       setError("Please upload only PDF or image files");
       return;
     }
-
-    setFiles((prevFiles) => [...prevFiles, ...selectedFiles]);
+    setFiles((prevFiles) => [
+      ...prevFiles,
+      ...selectedFiles.map((file) => ({
+        file,
+        progress: 0,
+        status: "uploading" as const
+      }))
+    ]);
     setError(null);
+    uploadFiles(selectedFiles);
   };
 
   const removeFile = (index: number) => {
+    if (files.some((f) => f.status === "uploading")) return;
     setFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
   };
 
-  const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (files.length === 0) return;
-    if (!storeName) {
-      setError("Please select a store");
-      return;
-    }
-
+  const uploadFiles = async (selectedFiles: File[]) => {
+    if (selectedFiles.length === 0) return;
     setIsUploading(true);
     setError(null);
-
     try {
-      const formData = new FormData();
-      formData.append("storeName", storeName);
-      formData.append("sessionId", sessionId);
-      files.forEach((file) => {
-        formData.append("file", file);
-      });
-
       const user = auth.currentUser;
-      let response;
-
-      if (user) {
-        // Authenticated upload
-        const token = await user.getIdToken();
-        response = await fetch("/api/receipts/upload", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`
-          },
-          body: formData
+      const uploadPromises = selectedFiles.map((file) => {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("sessionId", sessionId);
+          xhr.upload.addEventListener("progress", (event) => {
+            if (event.lengthComputable) {
+              const progress = Math.round((event.loaded * 100) / event.total);
+              setFiles((prevFiles) => {
+                const idx = prevFiles.findIndex(
+                  (f) => f.file.name === file.name
+                );
+                if (idx === -1) return prevFiles;
+                const newFiles = [...prevFiles];
+                newFiles[idx] = { ...newFiles[idx], progress };
+                return newFiles;
+              });
+            }
+          });
+          xhr.onload = async () => {
+            if (xhr.status === 200) {
+              setFiles((prevFiles) =>
+                prevFiles.map((f) =>
+                  f.file.name === file.name
+                    ? { ...f, progress: 100, status: "uploaded" }
+                    : f
+                )
+              );
+              resolve(xhr.responseText);
+            } else {
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          };
+          xhr.onerror = () => reject(new Error("Upload failed"));
+          const endpoint = user
+            ? "/api/receipts/upload"
+            : "/api/receipts/temp-upload";
+          xhr.open("POST", endpoint);
+          if (user) {
+            user
+              .getIdToken()
+              .then((token) => {
+                xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+                xhr.send(formData);
+              })
+              .catch(reject);
+          } else {
+            xhr.send(formData);
+          }
         });
-      } else {
-        // Unauthenticated upload
-        response = await fetch("/api/receipts/temp-upload", {
-          method: "POST",
-          body: formData
-        });
-      }
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to upload receipts");
-      }
-
-      const data = await response.json();
-
-      // Clear the form
-      setFiles([]);
-      setStoreName("");
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
-      if (user) {
-        // Redirect to profile page with success parameter
-        router.push("/profile?upload=success");
-      } else {
-        // Show email collection modal
-        router.push(`/auth/email?sessionId=${data.sessionId}`);
-      }
+      });
+      await Promise.all(uploadPromises);
+      setSessionIdState(sessionId);
     } catch (err) {
       console.error("Upload error:", err);
       setError(
@@ -150,58 +145,62 @@ export default function ReceiptUpload() {
     }
   };
 
-  return (
-    <form onSubmit={handleUpload} className="space-y-6">
-      <div>
-        <label
-          htmlFor="store"
-          className="block text-sm font-medium text-gray-700"
-        >
-          Store Name
-        </label>
-        <select
-          id="store"
-          name="store"
-          value={storeName}
-          onChange={(e) => setStoreName(e.target.value)}
-          required
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-        >
-          <option value="">Select a store</option>
-          {GROCERY_STORES.map((store) => (
-            <option key={store} value={store}>
-              {store}
-            </option>
-          ))}
-        </select>
-      </div>
+  // const handleProcessInsights = async () => {
+  //   setIsProcessing(true);
+  //   setError(null);
+  //   setInsights(null);
+  //   try {
+  //     const response = await fetch("/api/receipts/process-temp", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ sessionId: sessionIdState || sessionId })
+  //     });
+  //     if (!response.ok) {
+  //       throw new Error("Failed to process receipts and get insights");
+  //     }
+  //     const data = await response.json();
+  //     setInsights(data);
+  //   } catch (err) {
+  //     setError(
+  //       err instanceof Error ? err.message : "Failed to process receipts"
+  //     );
+  //   } finally {
+  //     setIsProcessing(false);
+  //   }
+  // };
 
-      <div
-        className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md"
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-      >
-        <div className="space-y-1 text-center">
-          <svg
-            className="mx-auto h-12 w-12 text-gray-400"
-            stroke="currentColor"
-            fill="none"
-            viewBox="0 0 48 48"
-            aria-hidden="true"
-          >
-            <path
-              d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+  return (
+    <form className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-md p-8 flex flex-col md:flex-row gap-10 items-start">
+      {/* Left: Drop area */}
+      <div className="flex-1 w-full md:w-1/2 flex flex-col items-center justify-center border-2 border-dashed border-blue-300 rounded-lg p-8 bg-gray-50 min-h-[320px]">
+        <div
+          className="flex flex-col items-center justify-center w-full h-full"
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
+          <div className="flex flex-col items-center mb-4">
+            <svg
+              className="h-14 w-14 text-blue-400 mb-2"
+              fill="none"
+              stroke="currentColor"
               strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <div className="flex text-sm text-gray-600">
+              viewBox="0 0 48 48"
+            >
+              <path
+                d="M24 6v24m0 0l-8-8m8 8l8-8M6 36h36"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <div className="text-lg font-medium text-gray-700 text-center">
+              Drag and Drop files to upload
+            </div>
+            <div className="text-gray-500 text-center">or</div>
             <label
               htmlFor="file-upload"
-              className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500"
+              className="mt-2 inline-block px-6 py-2 bg-blue-500 text-white font-semibold rounded-md shadow cursor-pointer hover:bg-blue-600 transition"
             >
-              <span>Upload files</span>
+              Browse
               <input
                 id="file-upload"
                 name="file-upload"
@@ -213,53 +212,157 @@ export default function ReceiptUpload() {
                 ref={fileInputRef}
               />
             </label>
-            <p className="pl-1">or drag and drop</p>
+            <div className="mt-2 text-xs text-gray-400">
+              Supported files: PDF, Images (JPG, PNG, etc.)
+            </div>
           </div>
-          <p className="text-xs text-gray-500">PDF or images up to 10MB each</p>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded mt-2 w-full text-center">
+              {error}
+            </div>
+          )}
+          {isUploading && (
+            <div className="mt-4 text-blue-600 text-sm">Uploading...</div>
+          )}
+          {isProcessing && (
+            <div className="mt-4 flex items-center gap-2 text-blue-600 text-sm">
+              <svg
+                className="animate-spin h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                ></path>
+              </svg>
+              Processing your receipts and extracting insights...
+            </div>
+          )}
+          {insights && (
+            <div className="mt-4 w-full bg-gray-100 rounded p-4 text-left">
+              <div className="font-semibold mb-2">Insights:</div>
+              <pre className="text-xs whitespace-pre-wrap">
+                {JSON.stringify(insights, null, 2)}
+              </pre>
+            </div>
+          )}
         </div>
       </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded relative">
-          {error}
+      {/* Right: Uploaded files list */}
+      <div className="flex flex-col justify-between w-full md:w-1/2 min-h-[320px] pb-8">
+        <div className=" font-semibold text-gray-700 mb-3">
+          Uploaded files
+          <div className="mt-4">
+            <ul className="space-y-3">
+              {files.length === 0 && (
+                <li className="text-gray-400 text-sm">No files selected.</li>
+              )}
+              {files.map((file, index) => {
+                let icon, iconColor;
+                if (file.file.type === "application/pdf") {
+                  icon = (
+                    <svg
+                      className="h-6 w-6 text-blue-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6z" />
+                      <path d="M14 2v6h6" />
+                    </svg>
+                  );
+                  iconColor = "text-red-400";
+                } else if (
+                  file.file.type &&
+                  file.file.type.startsWith("image/")
+                ) {
+                  icon = (
+                    <svg
+                      className="h-6 w-6 text-blue-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      viewBox="0 0 24 24"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <path d="M21 15l-5-5L5 21" />
+                    </svg>
+                  );
+                  iconColor = "text-blue-400";
+                } else {
+                  icon = (
+                    <svg
+                      className="h-6 w-6 text-yellow-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      viewBox="0 0 24 24"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                    </svg>
+                  );
+                  iconColor = "text-yellow-400";
+                }
+                return (
+                  <li
+                    key={index}
+                    className="flex flex-col gap-1 bg-gray-50 rounded px-3 py-2 shadow-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      {icon}
+                      <span className="flex-1 truncate text-gray-700 text-sm">
+                        {file.file.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(index)}
+                        className="ml-2 text-red-400 hover:text-red-600"
+                        title="Remove file"
+                      >
+                        <svg
+                          className="h-5 w-5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M6 7h12M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m2 0v12a2 2 0 01-2 2H8a2 2 0 01-2-2V7h12z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    {file.status === "uploading" && (
+                      <div className="w-full mt-1">
+                        <div className="h-1 w-full bg-gray-200 rounded">
+                          <div
+                            className="h-1 rounded bg-green-500 transition-all duration-300"
+                            style={{ width: `${file.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
-      )}
-
-      {files.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-gray-700">Selected files:</h3>
-          <ul className="space-y-2">
-            {files.map((file, index) => (
-              <li
-                key={index}
-                className="flex items-center justify-between bg-gray-50 px-4 py-2 rounded-md"
-              >
-                <span className="text-sm text-gray-600">{file.name}</span>
-                <button
-                  type="button"
-                  onClick={() => removeFile(index)}
-                  className="text-red-600 hover:text-red-800"
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div>
-        <button
-          type="submit"
-          disabled={isUploading || files.length === 0}
-          className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-            isUploading || files.length === 0
-              ? "bg-indigo-400 cursor-not-allowed"
-              : "bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          }`}
-        >
-          {isUploading ? "Uploading..." : "Upload Receipts"}
-        </button>
+        {sessionIdState && <InsightsProcessPanel sessionId={sessionIdState} />}
       </div>
     </form>
   );

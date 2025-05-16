@@ -47,9 +47,7 @@ export default function Home() {
         </div>
 
         <div className="max-w-3xl mx-auto">
-          <div className="bg-white shadow rounded-lg p-6">
-            <ReceiptUpload />
-          </div>
+          <ReceiptUpload />
         </div>
       </main>
     </div>
