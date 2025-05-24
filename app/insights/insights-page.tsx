@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 
 interface Receipt {
@@ -28,82 +29,82 @@ interface Insights {
   spendingByStore: SpendingByStore;
   spendingByMonth: SpendingByMonth;
   mostCommonItems: CommonItem[];
+  content: string;
+  lastUpdated: string;
 }
 
 export default function InsightsPage() {
+  const router = useRouter();
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingReceipts, setProcessingReceipts] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
-    const processAndFetchInsights = async () => {
-      try {
-        const token = await auth.currentUser?.getIdToken();
-        if (!token) {
-          throw new Error("Not authenticated");
+    fetchInsights();
+  }, []);
+
+  const fetchInsights = async () => {
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) {
+        throw new Error("Not authenticated");
+      }
+
+      const response = await fetch("/api/insights", {
+        headers: {
+          Authorization: `Bearer ${token}`
         }
+      });
 
-        // First, get unprocessed receipts
-        const receiptsResponse = await fetch("/api/receipts", {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-
-        if (!receiptsResponse.ok) {
-          throw new Error("Failed to fetch receipts");
-        }
-
-        const receipts = await receiptsResponse.json();
-        const unprocessedReceipts = receipts.filter(
-          (r: Receipt) => !r.processed
-        );
-
-        // If there are unprocessed receipts, process them first
-        if (unprocessedReceipts.length > 0) {
-          setProcessingReceipts(true);
-          const processResponse = await fetch("/api/receipts/process", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              receiptIds: unprocessedReceipts.map((r: Receipt) => r.id)
-            })
-          });
-
-          if (!processResponse.ok) {
-            throw new Error("Failed to process receipts");
-          }
-        }
-
-        // Now fetch the insights
-        const insightsResponse = await fetch("/api/insights", {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-
-        if (!insightsResponse.ok) {
+      if (!response.ok) {
+        if (response.status === 404) {
+          // No insights found, that's okay
+          setInsights(null);
+        } else {
           throw new Error("Failed to fetch insights");
         }
-
-        const data = await insightsResponse.json();
+      } else {
+        const data = await response.json();
         setInsights(data);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch insights"
-        );
-      } finally {
-        setLoading(false);
-        setProcessingReceipts(false);
       }
-    };
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch insights");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    processAndFetchInsights();
-  }, []);
+  const generateInsights = async () => {
+    try {
+      setGenerating(true);
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) {
+        throw new Error("Not authenticated");
+      }
+
+      const response = await fetch("/api/insights/generate", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate insights");
+      }
+
+      const data = await response.json();
+      setInsights(data);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to generate insights"
+      );
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -111,21 +112,13 @@ export default function InsightsPage() {
         <div className="max-w-3xl mx-auto">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900 mb-8">
-              {processingReceipts
-                ? "Processing Your Receipts"
-                : "Analyzing Your Shopping Patterns"}
+              Loading Insights
             </h1>
             <div className="animate-pulse space-y-4">
               <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto"></div>
               <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
               <div className="h-4 bg-gray-200 rounded w-2/3 mx-auto"></div>
             </div>
-            {processingReceipts && (
-              <p className="mt-4 text-gray-600">
-                Please wait while we process your receipts. This may take a few
-                moments...
-              </p>
-            )}
           </div>
         </div>
       </div>
@@ -170,63 +163,38 @@ export default function InsightsPage() {
         <div className="bg-white shadow rounded-lg p-6">
           {insights ? (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Overview
-                </h2>
-                <p className="text-gray-700">
-                  Total Spending: ${insights.totalSpending.toFixed(2)}
-                </p>
-                <p className="text-gray-700">
-                  Total Receipts: {insights.totalReceipts}
+              <div className="prose max-w-none">
+                <div dangerouslySetInnerHTML={{ __html: insights.content }} />
+                <p className="text-sm text-gray-500 mt-4">
+                  Last updated:{" "}
+                  {new Date(insights.lastUpdated).toLocaleString()}
                 </p>
               </div>
-
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Spending by Store
-                </h2>
-                <div className="space-y-2">
-                  {Object.entries(insights.spendingByStore).map(
-                    ([store, amount]) => (
-                      <p key={store} className="text-gray-700">
-                        {store}: ${amount.toFixed(2)}
-                      </p>
-                    )
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Monthly Spending
-                </h2>
-                <div className="space-y-2">
-                  {Object.entries(insights.spendingByMonth).map(
-                    ([month, amount]) => (
-                      <p key={month} className="text-gray-700">
-                        {month}: ${amount.toFixed(2)}
-                      </p>
-                    )
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Most Common Items
-                </h2>
-                <div className="space-y-2">
-                  {insights.mostCommonItems.map((item) => (
-                    <p key={item.name} className="text-gray-700">
-                      {item.name}: {item.count} times
-                    </p>
-                  ))}
-                </div>
-              </div>
+              <button
+                onClick={generateInsights}
+                disabled={generating}
+                className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                {generating ? "Generating..." : "Refresh Insights"}
+              </button>
             </div>
           ) : (
-            <p className="text-gray-700">No insights available yet.</p>
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                No Insights Yet
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Generate insights from your shopping history to see patterns and
+                recommendations.
+              </p>
+              <button
+                onClick={generateInsights}
+                disabled={generating}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                {generating ? "Generating..." : "Generate Insights"}
+              </button>
+            </div>
           )}
         </div>
       </div>

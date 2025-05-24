@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { extractReceiptData } from "@/lib/openai";
+import {
+  extractReceiptData,
+  generateShoppingInsights,
+  ReceiptItem
+} from "@/lib/openai";
 
 export async function POST(request: Request) {
   try {
@@ -35,8 +39,9 @@ export async function POST(request: Request) {
           where: { id: receipt.id },
           data: {
             storeName: data.storeName,
-            date: data.purchaseDate,
+            date: data.date,
             totalAmount: data.totalAmount,
+            totalItems: data.totalItems,
             items: data.items,
             processed: true
           }
@@ -49,25 +54,38 @@ export async function POST(request: Request) {
       }
     }
 
-    // Optionally, calculate insights here (e.g., total spent, item count, etc.)
-    const totalAmount = processedReceipts.reduce(
-      (sum, r) => sum + (r.totalAmount || 0),
-      0
-    );
-    const totalItems = processedReceipts.reduce(
-      (sum, r) => sum + (Array.isArray(r.items) ? r.items.length : 0),
-      0
-    );
-
-    return NextResponse.json({
-      receipts: processedReceipts,
-      insights: {
-        totalAmount,
-        totalItems
+    const receiptsForInsights = await prisma.receipt.findMany({
+      where: {
+        tempSessionId: sessionId,
+        processed: true
       }
     });
+    console.log(receiptsForInsights);
+
+    // Transform receipts to match ReceiptData interface
+    const transformedReceipts = receiptsForInsights.map((receipt) => ({
+      storeName: receipt.storeName,
+      date: receipt.date,
+      totalAmount: receipt.totalAmount,
+      totalItems: receipt.totalItems,
+      items: receipt.items as ReceiptItem[]
+    }));
+
+    // Generate insights using OpenAI
+    const insights = await generateShoppingInsights(transformedReceipts);
+
+    // Store insights in the database
+    const storedInsights = await prisma.insights.create({
+      data: {
+        tempSessionId: sessionId,
+        content: insights,
+        lastUpdated: new Date()
+      }
+    });
+
+    return NextResponse.json(storedInsights);
   } catch (error) {
-    console.error("Error processing temp receipts:", error);
+    console.error("Error generating insights:", error);
     return new NextResponse(
       error instanceof Error ? error.message : "Internal Server Error",
       { status: 500 }

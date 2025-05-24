@@ -50,6 +50,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   receipts      Receipt[]
+  insights      Insights[]
 }
 
 model VerificationToken {
@@ -63,8 +64,8 @@ model VerificationToken {
 model TempSession {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
-  email     String?
   receipts  Receipt[]
+  insights  Insights[]
 }
 
 model Receipt {
@@ -74,6 +75,7 @@ model Receipt {
   storeName   String
   date        DateTime
   totalAmount Float
+  totalItems  Int @default(0)
   fileUrl     String
   filePath    String
   fileType    String
@@ -82,5 +84,15 @@ model Receipt {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   user        User?       @relation(fields: [userId], references: [id])
+  tempSession TempSession? @relation(fields: [tempSessionId], references: [id])
+}
+
+model Insights {
+  id          String   @id @default(uuid())
+  userId      String?
+  tempSessionId String?
+  content     String
+  lastUpdated DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id])
   tempSession TempSession? @relation(fields: [tempSessionId], references: [id])
 }

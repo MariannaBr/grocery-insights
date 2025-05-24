@@ -1,3 +1,4 @@
+import { generateShoppingInsights } from "@/lib/openai";
 import { useState } from "react";
 
 interface InsightsProcessPanelProps {
@@ -8,10 +9,11 @@ export default function InsightsProcessPanel({
   sessionId
 }: InsightsProcessPanelProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessed, setIsProcessed] = useState(false);
   const [insights, setInsights] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleProcessInsights = async () => {
+  const handleProcessReceipts = async () => {
     setIsProcessing(true);
     setError(null);
     setInsights(null);
@@ -24,27 +26,31 @@ export default function InsightsProcessPanel({
       if (!response.ok) {
         throw new Error("Failed to process receipts and get insights");
       }
-      const data = await response.json();
-      setInsights(data);
+
+      const insights = await response.json();
+      setInsights(insights);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to process receipts"
       );
     } finally {
       setIsProcessing(false);
+      setIsProcessed(true);
     }
   };
 
   return (
     <div className="mt-4 w-full flex justify-center">
-      <button
-        type="button"
-        onClick={handleProcessInsights}
-        className="mt-2 px-8 py-4 bg-blue-600 text-white rounded-md text-lg font-semibold shadow hover:bg-blue-700 transition"
-        disabled={isProcessing}
-      >
-        Learn the Insights
-      </button>
+      {!isProcessing && !isProcessed && (
+        <button
+          type="button"
+          onClick={handleProcessReceipts}
+          className="mt-2 px-8 py-4 bg-blue-600 text-white rounded-md text-lg font-semibold shadow hover:bg-blue-700 transition"
+          disabled={isProcessing}
+        >
+          Learn the Insights
+        </button>
+      )}
       {isProcessing && (
         <div className="mt-4 flex items-center gap-2 text-blue-600 text-sm">
           <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">

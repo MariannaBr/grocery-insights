@@ -66,58 +66,22 @@ export async function GET(request: Request) {
     const decodedToken = await getAuth().verifyIdToken(token);
     const userId = decodedToken.uid;
 
-    const receipts = await prisma.receipt.findMany({
-      where: {
-        userId,
-        processed: true
-      },
-      orderBy: {
-        date: "desc"
-      }
-    });
+    // const insights = await prisma.insights.findUnique({
+    //   where: {
+    //     userId
+    //   }
+    // });
 
-    // Calculate total spending
-    const totalSpending = receipts.reduce(
-      (sum, receipt) => sum + receipt.totalAmount,
-      0
-    );
+    // if (!insights) {
+    //   return new NextResponse("No insights found", { status: 404 });
+    // }
 
-    // Calculate spending by store
-    const spendingByStore = receipts.reduce((acc, receipt) => {
-      const store = receipt.storeName || "Unknown Store";
-      acc[store] = (acc[store] || 0) + receipt.totalAmount;
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Calculate spending by month
-    const spendingByMonth = receipts.reduce((acc, receipt) => {
-      const month = receipt.date.toISOString().slice(0, 7); // YYYY-MM format
-      acc[month] = (acc[month] || 0) + receipt.totalAmount;
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Calculate most common items
-    const itemCounts = receipts.reduce((acc, receipt) => {
-      (receipt.items as Array<{ name: string }>).forEach((item) => {
-        acc[item.name] = (acc[item.name] || 0) + 1;
-      });
-      return acc;
-    }, {} as Record<string, number>);
-
-    const mostCommonItems = Object.entries(itemCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
-      .map(([name, count]) => ({ name, count }));
-
-    return NextResponse.json({
-      totalSpending,
-      spendingByStore,
-      spendingByMonth,
-      mostCommonItems,
-      totalReceipts: receipts.length
-    });
+    // return NextResponse.json(insights);
   } catch (error) {
     console.error("Error fetching insights:", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
+    return new NextResponse(
+      error instanceof Error ? error.message : "Internal Server Error",
+      { status: 500 }
+    );
   }
 }

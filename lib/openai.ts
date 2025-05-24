@@ -16,8 +16,9 @@ export interface ReceiptItem {
 
 export interface ReceiptData {
   storeName: string;
-  purchaseDate: Date;
+  date: Date;
   totalAmount: number;
+  totalItems: number;
   items: ReceiptItem[];
 }
 
@@ -49,7 +50,7 @@ export async function extractReceiptData(
 
     // Get response from OpenAI
     const response = await openai.responses.create({
-      model: "gpt-4.1",
+      model: "gpt-4o-mini",
       input: [
         {
           role: "user",
@@ -60,7 +61,7 @@ export async function extractReceiptData(
             },
             {
               type: "input_text",
-              text: "Extract the following information from this receipt: store name, purchase date, total amount, and for each item: name, code, size, price, and purchase date. Return ONLY the JSON data without any markdown formatting or additional text."
+              text: "Extract the following information from this receipt: store name, purchase date, total amount, total items, and for each item: name, code, size, price, and purchase date. Return ONLY the JSON data without any markdown formatting or additional text."
             }
           ]
         }
@@ -75,7 +76,7 @@ export async function extractReceiptData(
     try {
       // Clean the response content by removing any markdown formatting
       const cleanedContent = content.replace(/```json\n?|\n?```/g, "").trim();
-      console.log("Cleaned OpenAI Response:", cleanedContent);
+      //console.log("Cleaned OpenAI Response:", cleanedContent);
 
       const data = JSON.parse(cleanedContent);
 
@@ -84,6 +85,7 @@ export async function extractReceiptData(
         !data.store_name ||
         !data.purchase_date ||
         !data.total_amount ||
+        !data.total_items ||
         !Array.isArray(data.items)
       ) {
         console.error("Missing required fields in OpenAI response:", data);
@@ -93,8 +95,9 @@ export async function extractReceiptData(
       // Validate and transform the data
       const transformedData = {
         storeName: String(data.store_name),
-        purchaseDate: new Date(data.purchase_date),
+        date: new Date(data.purchase_date),
         totalAmount: parseFloat(data.total_amount),
+        totalItems: data.total_items,
         items: data.items.map((item: OpenAIResponseItem) => {
           if (!item.name || !item.code || !item.price || !item.purchase_date) {
             console.error("Invalid item format:", item);
@@ -103,7 +106,7 @@ export async function extractReceiptData(
           return {
             ...item,
             price: parseFloat(item.price),
-            purchaseDate: new Date(item.purchase_date)
+            date: new Date(item.purchase_date)
           };
         })
       };
@@ -142,40 +145,45 @@ export async function extractReceiptData(
   }
 }
 
-// export async function generateShoppingInsights(
-//   receipts: ReceiptData[]
-// ): Promise<string> {
-//   try {
-//     const response = await openai.chat.completions.create({
-//       model: "gpt-4",
-//       messages: [
-//         {
-//           role: "system",
-//           content: `You are a shopping insights expert. Analyze the following receipt data and provide meaningful insights about shopping patterns, spending habits, and recommendations. Focus on:
-// 1. Most frequent stores
-// 2. Average spending per trip
-// 3. Common items purchased
-// 4. Spending trends over time
-// 5. Potential savings opportunities
-// Format the response in a clear, structured way with sections and bullet points.`
-//         },
-//         {
-//           role: "user",
-//           content: JSON.stringify(receipts)
-//         }
-//       ],
-//       temperature: 0.7,
-//       max_tokens: 1000
-//     });
+export async function generateShoppingInsights(
+  receipts: ReceiptData[]
+): Promise<string> {
+  try {
+    const response = await openai.responses.create({
+      model: "gpt-4o-mini",
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: JSON.stringify(receipts)
+            },
+            {
+              type: "input_text",
+              text: `You are a shopping insights expert. Analyze the following receipt data and provide meaningful insights about shopping patterns, spending habits, and recommendations. Focus on:
+              1. Most frequent stores
+              2. Average spending per trip
+              3. Common items purchased
+              4. Spending trends over time
+              5. Potential savings opportunities
+              Format the response in a clear, structured way with sections and bullet points.`
+            }
+          ]
+        }
+      ],
+      temperature: 1,
+      max_output_tokens: 1000
+    });
 
-//     const insights = response.choices[0]?.message?.content;
-//     if (!insights) {
-//       throw new Error("No insights generated");
-//     }
+    const insights = response.output_text;
+    if (!insights) {
+      throw new Error("No insights generated");
+    }
 
-//     return insights;
-//   } catch (error) {
-//     console.error("Error generating shopping insights:", error);
-//     throw new Error("Failed to generate shopping insights");
-//   }
-// }
+    return insights;
+  } catch (error) {
+    console.error("Error generating shopping insights:", error);
+    throw new Error("Failed to generate shopping insights");
+  }
+}
